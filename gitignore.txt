@@ -1,0 +1,34 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+
+trainer.yml
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+bin/
+pyvenv.cfg
+.venv/
+env/
+venv/
+ENV/
+lib/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# App-specific temporary/backup folders
+positives_temp/
+positives_temp_bak/
+templates_temp/
+
+# Optional: If you use .env for secrets (highly recommended)
+.env
