@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MOG PROTOCOL</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ---------------- Base ---------------- */
+* { box-sizing: border-box; margin:0; padding:0; }
+body {
+    font-family: 'Orbitron', sans-serif;
+    background: #0a0a1f;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    overflow-x: hidden;
+    position: relative;
+    text-align: center;
+}
+
+/* ---------------- Particle Background ---------------- */
+#particles {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* ---------------- Header ---------------- */
+header {
+    margin-bottom: 20px;
+}
+h1 { font-size: 3rem; color: #00ffff; text-shadow: 0 0 8px #00ffff,0 0 20px #00ffff; }
+.subtitle { font-size: 1rem; color: #a0a0ff; margin-bottom: 12px; }
+
+/* ---------------- Boxes Layout (Merged) ---------------- */
+.flex-container { 
+    display: flex; 
+    gap: 20px; 
+    justify-content: center; 
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.box {
+    border: 2px solid #00ffff;
+    padding: 10px;
+    border-radius: 12px;
+    background: #11112b;
+    width: 420px;
+}
+.box h3 {
+    margin-bottom: 6px;
+    color: #00ffff;
+}
+video, img {
+    width: 100%;
+    border-radius: 8px;
+    background: #000;
+}
+
+/* ---------------- Button ---------------- */
+button {
+    background: #00ffff;
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 28px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+button:hover { transform: scale(1.05); background: #0ff8ff; }
+
+/* ---------------- Status + Score ---------------- */
+#status { font-size: 1.2rem; margin-bottom: 6px; }
+#score { font-size: 1.2rem; color: #0ff; margin-bottom: 12px; }
+
+/* ---------------- Chud Feed ---------------- */
+#chudFeedContainer {
+    width: 640px;
+    max-width: 90%;
+    background: #0d0d2a;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 12px;
+    border: 1px solid #00ffff;
+}
+#chudFeedHeader {
+    font-size: 1.2rem;
+    color: #00ffff;
+    margin-bottom: 10px;
+}
+#chudFeed { max-height: 280px; overflow-y: auto; }
+.feedEntry {
+    background: #11112b;
+    border-left: 4px solid #ff0;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.feedEntry:hover { transform: translateX(4px); border-color: #00ffff; }
+.feedTimestamp { font-size: 0.75rem; color: #aaa; margin-bottom: 4px; }
+.feedText { font-size: 1rem; }
+
+/* ---------------- Alert Mode ---------------- */
+.alertMode .box video { border-color: #ff3b30; animation: alertFlash 0.15s alternate infinite; }
+@keyframes alertFlash { 0% { border-color: #ff3b30; } 100% { border-color: #ffda00; } }
+
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<header>
+    <h1>MOG PROTOCOL</h1>
+    <div class="subtitle">Know if you’re a Chud. Or Mog. 🔥</div>
+</header>
+
+<div class="flex-container">
+    <div class="box">
+        <h3>Raw Input</h3>
+        <video id="video" autoplay muted></video>
+    </div>
+    <div class="box">
+        <h3>AI Analysis</h3>
+        <img id="processedImage" src="">
+    </div>
+</div>
+
+<button id="activateBtn">Activate Scanner</button>
+<div id="status">System Dormant</div>
+<div id="score">Chud Percentage: 0</div>
+
+<div id="chudFeedContainer">
+    <div id="chudFeedHeader">Chud Chronicles</div>
+    <div id="chudFeed"></div>
+</div>
+
+<audio id="mogTrack" src="assets/mog-phonk.mp3"></audio>
+
+<canvas id="canvas" width="400" height="300" style="display:none;"></canvas>
+
+<script>
+/* ---------------- DOM ---------------- */
+const video = document.getElementById("video");
+const processedImage = document.getElementById("processedImage");
+const resultText = document.getElementById("result");
+const status = document.getElementById("status");
+const activateBtn = document.getElementById("activateBtn");
+const feed = document.getElementById("chudFeed");
+const scoreDisplay = document.getElementById("score");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let audio = document.getElementById("mogTrack");
+let audioCtx, gainNode;
+let active = false;
+let chudPoints = 0;
+
+audio.volume = 1.0;
+
+/* ---------------- Particle Background ---------------- */
+const particlesCanvas = document.getElementById("particles");
+const pCtx = particlesCanvas.getContext("2d");
+particlesCanvas.width = window.innerWidth;
+particlesCanvas.height = window.innerHeight;
+let particles = [];
+for(let i=0;i<80;i++){
+    particles.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,size:Math.random()*3+1,speed:Math.random()*0.5+0.2});
+}
+function drawParticles(){
+    pCtx.clearRect(0,0,particlesCanvas.width,particlesCanvas.height);
+    particles.forEach(p=>{
+        pCtx.fillStyle="rgba(0,255,255,0.3)";
+        pCtx.beginPath();
+        pCtx.arc(p.x,p.y,p.size,0,Math.PI*2);
+        pCtx.fill();
+        p.y-=p.speed;
+        if(p.y<0)p.y=window.innerHeight;
+    });
+    requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+/* ---------------- Camera + Backend Loop ---------------- */
+async function startCamera(){
+    try{
+        const stream = await navigator.mediaDevices.getUserMedia({video:true});
+        video.srcObject = stream;
+        sendFrame(); // start loop
+    } catch(e){ console.error(e); alert("Camera access required."); }
+}
+
+let lastScoreUpdateTime = 0; // Stores the timestamp of the last score update
+
+async function sendFrame() {
+	ctx.drawImage(video,0,0,400,300);
+    
+    canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('frame', blob);
+
+        try {
+            const response = await fetch('/process_frame',{method:'POST',body:formData});
+            const data = await response.json();
+
+            // 1. ALWAYS update the image (every ~50-100ms)
+            if (data.image) {
+                processedImage.src = data.image;
+            }
+
+            // 2. ONLY update the score every 3000ms (3 seconds)
+            const currentTime = Date.now();
+            if (currentTime - lastScoreUpdateTime >= 3000) {
+                if (data.score !== undefined) {
+                    updateChudPoints(data.score);
+                    lastScoreUpdateTime = currentTime; // Reset the timer
+                }
+            }
+
+        } catch (e) {
+            console.error("Server error", e);
+        }
+
+        // Keep the video loop fast (50ms)
+        setTimeout(sendFrame, 200);
+    }, 'image/jpeg', 0.6);
+}
+
+/* ---------------- Audio ---------------- */
+function startAudio(){
+    audioCtx = new AudioContext();
+    const source = audioCtx.createMediaElementSource(audio);
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value=3.5;
+    source.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    audio.play();
+}
+
+/* ---------------- Detection Simulation (for feed & points) ---------------- */
+activateBtn.addEventListener("click",async ()=>{
+    if(active) return;
+    active=true;
+    status.innerText="Calibrating...";
+    startCamera();
+    startAudio();
+    simulateDetection();
+});
+
+/* ---------------- Feed + Chud Points ---------------- */
+function simulateDetection(){
+    setInterval(()=>{
+        const unstable = Math.random()>0.7;
+        if(unstable) triggerChud();
+        else triggerMog();
+    },1000);
+}
+
+const THRESHOLD = 30
+
+function triggerChud() {
+	// mogger
+	if(chudPoints >= THRESHOLD) {
+		return;
+	}
+    document.body.classList.add("alertMode");
+    status.innerText="🚨 CHUD ALERT! 🚨";
+    fadeMusic(0);
+    <!-- chudPoints += 1; -->
+    scoreDisplay.innerText=`Chud Percentage: ${chudPoints}%`;
+    logFeed(randomChudMessage());
+    speak("Chud alert!");
+}
+
+function triggerMog(){
+	if(chudPoints < THRESHOLD) {
+		return;
+	}
+    document.body.classList.remove("alertMode");
+    status.innerText="All clear. Mog level stable 😎";
+    fadeMusic(3.5);
+    <!-- chudPoints = Math.max(0,chudPoints-1); -->
+    scoreDisplay.innerText=`Chud Percentage: ${chudPoints}%`;
+    logFeed(randomMogMessage());
+	startAudio();
+}
+
+function logFeed(msg){
+    const entry=document.createElement("div");
+    entry.classList.add("feedEntry");
+    const time=new Date().toLocaleTimeString();
+    entry.innerHTML=`<div class="feedTimestamp">${time}</div><div class="feedText">${msg}</div>`;
+    feed.prepend(entry);
+}
+
+function updateChudPoints(score){ chudPoints = score; scoreDisplay.innerText=`Chud Percentage: ${chudPoints}%`; }
+
+/* ---------------- Audio + Voice ---------------- */
+function fadeMusic(target) {
+		gainNode.gain.linearRampToValueAtTime(target,audioCtx.currentTime+0.8); 
+		}
+function speak(text){ const u=new SpeechSynthesisUtterance(text); u.rate=0.85; u.pitch=0.6; speechSynthesis.speak(u); }
+
+/* ---------------- Random Messages ---------------- */
+function randomChudMessage(){
+    const msgs=["🔥 Critical Chud detected! 🔥","💀 Phonk resistance failed!","🚨 Mog override required!","⚠️ Stability compromised!","💥 Chud meter rising rapidly!","👀 Someone is off the mog!"];
+    return msgs[Math.floor(Math.random()*msgs.length)];
+}
+function randomMogMessage(){
+    const msgs=["✅ All clear. Keep the vibe.","😎 Mog flow optimal.","🎵 Phonk stabilized.","✨ Energy levels steady.","💫 Good vibes maintained."];
+    return msgs[Math.floor(Math.random()*msgs.length)];
+}
+
+/* ---------------- Micro-interactions ---------------- */
+video.addEventListener("click",()=>speak("Scanning... Intensifying Vibes!"));
+
+window.addEventListener("resize",()=>{particlesCanvas.width=window.innerWidth;particlesCanvas.height=window.innerHeight;});
+</script>
+
+</body>
+</html>
